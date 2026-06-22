@@ -1,0 +1,21 @@
+{
+  "name": "aidoAcademy",
+  "short_name": "aidoAcademy",
+  "description": "Formazione e Innovazione per la Cultura del Dono",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ED1C24",
+  "icons": [
+    {
+      "src": "/aido-logo.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/aido-logo.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}
