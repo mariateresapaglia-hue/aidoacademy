@@ -8,6 +8,26 @@ import {
   ChevronDown, ChevronUp, AlertCircle
 } from "lucide-react";
 
+// ---------- Supabase ----------
+// NOTA: la libreria @supabase/supabase-js non e' disponibile nell'anteprima
+// di Claude.ai, quindi qui viene caricata dinamicamente solo quando il sito
+// gira nel browser vero (es. sul tuo computer con Vite, o sul sito pubblicato).
+// Su Claude.ai questa parte viene semplicemente ignorata senza dare errori.
+const SUPABASE_URL = "https://lzpdypviojpjzpgfpsaf.supabase.co";
+const SUPABASE_KEY = "sb_publishable_nfPjpS3i1fIl3yKHzuRpwg_QKYcVox1";
+
+let supabase = null;
+let supabaseReady = (async () => {
+  try {
+    const mod = await import("@supabase/supabase-js");
+    supabase = mod.createClient(SUPABASE_URL, SUPABASE_KEY);
+    return true;
+  } catch {
+    supabase = null;
+    return false;
+  }
+})();
+
 // ---------- Icon map ----------
 const ICONS = {
   GraduationCap, Database, Laptop, Megaphone, Shield, FileText, Lock,
@@ -254,35 +274,213 @@ const TRACKS = {
   operative: { label: "Competenze Operative e Relazionali", color: "#e8233c" },
 };
 
-// ---------- Storage helpers ----------
-// NOTA: window.storage funziona SOLO dentro Claude.ai.
-// Se esegui questo codice fuori da Claude (es. sul tuo computer con Vite),
-// queste funzioni andranno sostituite con un vero database (es. Supabase).
-async function loadShared(key, fallback) {
-  try {
-    if (typeof window === "undefined" || !window.storage) return fallback;
-    const res = await window.storage.get(key, true);
-    return res ? JSON.parse(res.value) : fallback;
-  } catch {
-    return fallback;
+// ---------- Supabase Auth helpers ----------
+async function signUpUser(name, email, password) {
+  await supabaseReady;
+  if (!supabase) return { error: "Supabase non disponibile in questo ambiente." };
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { name } },
+  });
+  if (error) return { error: error.message };
+  const role = email === "admin@aido.it" ? "admin" : "volunteer";
+  if (data.user) {
+    await supabase.from("users").upsert(
+      { email, name, role },
+      { onConflict: "email" }
+    );
+  }
+  return { data };
+}
+
+async function signInUser(email, password) {
+  await supabaseReady;
+  if (!supabase) return { error: "Supabase non disponibile in questo ambiente." };
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) return { error: error.message };
+  return { data };
+}
+
+async function signOutUser() {
+  await supabaseReady;
+  if (!supabase) return;
+  await supabase.auth.signOut();
+}
+
+async function getCurrentSession() {
+  await supabaseReady;
+  if (!supabase) return null;
+  const { data } = await supabase.auth.getSession();
+  return data.session;
+}
+async function fetchUsers() {
+  await supabaseReady;
+  if (!supabase) return {};
+  const { data, error } = await supabase.from("users").select("*");
+  if (error) { console.error(error); return {}; }
+  const map = {};
+  data.forEach((u) => { map[u.email] = u; });
+  return map;
+}
+
+async function fetchCourses() {
+  await supabaseReady;
+  if (!supabase) return [];
+  const { data, error } = await supabase.from("courses").select("*");
+  if (error) { console.error(error); return []; }
+  return data.map((c) => ({
+    id: c.course_id,
+    track: c.track,
+    icon: c.icon,
+    title: c.title,
+    description: c.description,
+    modules: c.modules || [],
+    quiz: c.quiz || [],
+  }));
+}
+
+async function seedCoursesIfEmpty() {
+  await supabaseReady;
+  if (!supabase) return;
+  const { count, error } = await supabase.from("courses").select("*", { count: "exact", head: true });
+  if (error) { console.error(error); return; }
+  if (count === 0) {
+    const rows = SEED_COURSES.map((c) => ({
+      course_id: c.id,
+      track: c.track,
+      icon: c.icon,
+      title: c.title,
+      description: c.description,
+      modules: c.modules,
+      quiz: c.quiz,
+    }));
+    const { error: insertError } = await supabase.from("courses").insert(rows);
+    if (insertError) console.error("seed error", insertError);
   }
 }
-async function saveShared(key, value) {
-  try {
-    if (typeof window === "undefined" || !window.storage) return;
-    await window.storage.set(key, JSON.stringify(value), true);
-  } catch (e) {
-    console.error("storage save error", e);
-  }
+
+async function upsertCourse(course) {
+  await supabaseReady;
+  if (!supabase) return;
+  const row = {
+    course_id: course.id,
+    track: course.track,
+    icon: course.icon,
+    title: course.title,
+    description: course.description,
+    modules: course.modules,
+    quiz: course.quiz,
+  };
+  const { error } = await supabase.from("courses").upsert(row, { onConflict: "course_id" });
+  if (error) console.error("upsertCourse error", error);
+}
+
+async function deleteCourseRow(courseId) {
+  await supabaseReady;
+  if (!supabase) return;
+  const { error } = await supabase.from("courses").delete().eq("course_id", courseId);
+  if (error) console.error("deleteCourse error", error);
+}
+
+async function fetchProgress() {
+  await supabaseReady;
+  if (!supabase) return {};
+  const { data, error } = await supabase.from("progress").select("*");
+  if (error) { console.error(error); return {}; }
+  const map = {};
+  data.forEach((p) => {
+    if (!map[p.user_email]) map[p.user_email] = {};
+    map[p.user_email][p.course_id] = {
+      completedModules: p.completed_modules || [],
+      quizPassed: p.quiz_passed || false,
+      quizScore: p.quiz_score,
+      quizTotal: p.quiz_total,
+    };
+  });
+  return map;
+}
+
+async function upsertProgress(userEmail, courseId, cp) {
+  await supabaseReady;
+  if (!supabase) return;
+  const row = {
+    user_email: userEmail,
+    course_id: courseId,
+    completed_modules: cp.completedModules,
+    quiz_passed: cp.quizPassed,
+    quiz_score: cp.quizScore,
+    quiz_total: cp.quizTotal,
+  };
+  const { error } = await supabase.from("progress").upsert(row, { onConflict: "user_email,course_id" });
+  if (error) console.error("upsertProgress error", error);
+}
+
+async function fetchAccessLog() {
+  await supabaseReady;
+  if (!supabase) return [];
+  const { data, error } = await supabase.from("access_log").select("*").order("timestamp", { ascending: true });
+  if (error) { console.error(error); return []; }
+  return data.map((a) => ({ email: a.email, timestamp: a.timestamp }));
+}
+
+async function insertAccessLog(email) {
+  await supabaseReady;
+  if (!supabase) return;
+  const { error } = await supabase.from("access_log").insert({ email, timestamp: new Date().toISOString() });
+  if (error) console.error("insertAccessLog error", error);
 }
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+// ---------- PWA install prompt ----------
+function useInstallPrompt() {
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [installed, setInstalled] = useState(false);
+
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    window.addEventListener("appinstalled", () => setInstalled(true));
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  const promptInstall = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    setDeferredPrompt(null);
+  };
+
+  return { canInstall: !!deferredPrompt && !installed, promptInstall };
+}
+
 // ---------- AIDO-style logo (original stylized drop, brand-consistent colors) ----------
 function AidoLogo({ className }) {
-  return <img src="/aido-logo.svg" alt="AIDO" className={`${className} object-contain`} />;
+  return (
+    <svg viewBox="0 0 100 90" className={className} xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M50 3C50 3 12 42 12 62C12 76.8 29.4 87 50 87C70.6 87 88 76.8 88 62C88 42 50 3 50 3Z"
+        fill="#ED1C24"
+      />
+      <text
+        x="50"
+        y="62"
+        textAnchor="middle"
+        fontFamily="Arial, sans-serif"
+        fontWeight="800"
+        fontSize="44"
+        fill="white"
+      >
+        A
+      </text>
+    </svg>
+  );
 }
 
 // ---------- Main App ----------
@@ -301,18 +499,32 @@ export default function App() {
   const [trackFilter, setTrackFilter] = useState("all");
   const [toast, setToast] = useState(null);
 
-  // Boot: load from storage
+  // Boot: load from Supabase
   useEffect(() => {
     (async () => {
-      const u = await loadShared("aido-users", {});
-      const c = await loadShared("aido-courses", null);
-      const p = await loadShared("aido-progress", {});
-      const log = await loadShared("aido-access-log", []);
+      await seedCoursesIfEmpty();
+      const [u, c, p, log, session] = await Promise.all([
+        fetchUsers(),
+        fetchCourses(),
+        fetchProgress(),
+        fetchAccessLog(),
+        getCurrentSession(),
+      ]);
       setUsers(u);
-      setCourses(c && c.length ? c : SEED_COURSES);
-      if (!c) await saveShared("aido-courses", SEED_COURSES);
+      setCourses(c.length ? c : SEED_COURSES);
       setProgress(p);
       setAccessLog(log);
+
+      if (session?.user?.email) {
+        const email = session.user.email.toLowerCase();
+        const known = u[email] || {
+          email,
+          name: session.user.user_metadata?.name || email,
+          role: email === "admin@aido.it" ? "admin" : "volunteer",
+        };
+        setCurrentUser(known);
+      }
+
       setBooting(false);
     })();
   }, []);
@@ -323,11 +535,9 @@ export default function App() {
   }, []);
 
   const logAccess = async (email) => {
-    const now = new Date().toISOString();
-    const log = await loadShared("aido-access-log", []);
-    const newLog = [...log, { email, timestamp: now }];
-    await saveShared("aido-access-log", newLog);
-    setAccessLog(newLog);
+    await insertAccessLog(email);
+    const log = await fetchAccessLog();
+    setAccessLog(log);
   };
 
   // ----- Auth -----
@@ -335,27 +545,47 @@ export default function App() {
     email = email.trim().toLowerCase();
     if (!name || !email || !password) { setAuthError("Compila tutti i campi."); return; }
     if (users[email]) { setAuthError("Esiste già un account con questa email."); return; }
-    const role = email === "admin@aido.it" ? "admin" : "volunteer";
-    const newUsers = { ...users, [email]: { email, name, password, role } };
-    setUsers(newUsers);
-    await saveShared("aido-users", newUsers);
-    setCurrentUser(newUsers[email]);
+    const { data, error } = await signUpUser(name, email, password);
+    if (error) { setAuthError(error); return; }
     setAuthError("");
-    showToast(`Benvenuto/a, ${name}!`);
-    await logAccess(email);
+    if (data?.session) {
+      // Email già confermata automaticamente (raro, dipende dalle impostazioni)
+      const role = email === "admin@aido.it" ? "admin" : "volunteer";
+      const newUser = { email, name, role };
+      setUsers((prev) => ({ ...prev, [email]: newUser }));
+      setCurrentUser(newUser);
+      showToast(`Benvenuto/a, ${name}!`);
+      await logAccess(email);
+    } else {
+      showToast("Controlla la tua email per confermare la registrazione! 📧");
+      setAuthMode("login");
+    }
   };
 
   const handleLogin = async (email, password) => {
     email = email.trim().toLowerCase();
-    const u = users[email];
-    if (!u || u.password !== password) { setAuthError("Email o password non corretti."); return; }
+    const { data, error } = await signInUser(email, password);
+    if (error) {
+      if (error.toLowerCase().includes("confirm")) {
+        setAuthError("Devi prima confermare la tua email. Controlla la posta in arrivo.");
+      } else {
+        setAuthError("Email o password non corretti.");
+      }
+      return;
+    }
+    const u = users[email] || {
+      email,
+      name: data.user.user_metadata?.name || email,
+      role: email === "admin@aido.it" ? "admin" : "volunteer",
+    };
     setCurrentUser(u);
     setAuthError("");
     showToast(`Bentornato/a, ${u.name}!`);
     await logAccess(email);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await signOutUser();
     setCurrentUser(null);
     setView("catalog");
     setActiveCourseId(null);
@@ -367,14 +597,14 @@ export default function App() {
   const updateProgress = async (courseId, updater) => {
     if (!currentUser) return;
     const userKey = currentUser.email;
-    const currentCourseProg = (progress[userKey] && progress[userKey][courseId]) || { completedModules: [], quizPassed: false, quizScore: null };
+    const currentCourseProg = (progress[userKey] && progress[userKey][courseId]) || { completedModules: [], quizPassed: false, quizScore: null, quizTotal: null };
     const updated = updater(currentCourseProg);
     const newProgress = {
       ...progress,
       [userKey]: { ...(progress[userKey] || {}), [courseId]: updated },
     };
     setProgress(newProgress);
-    await saveShared("aido-progress", newProgress);
+    await upsertProgress(userKey, courseId, updated);
   };
 
   const toggleModuleComplete = (courseId, moduleId) => {
@@ -404,15 +634,19 @@ export default function App() {
   };
 
   // ----- Admin: course management -----
-  const persistCourses = async (next) => {
-    setCourses(next);
-    await saveShared("aido-courses", next);
+  const addCourse = async (course) => {
+    await upsertCourse(course);
+    setCourses((prev) => [...prev, course]);
   };
-
-  const addCourse = (course) => persistCourses([...courses, course]);
-  const updateCourse = (courseId, patch) =>
-    persistCourses(courses.map((c) => (c.id === courseId ? { ...c, ...patch } : c)));
-  const deleteCourse = (courseId) => persistCourses(courses.filter((c) => c.id !== courseId));
+  const updateCourse = async (courseId, patch) => {
+    const updated = { ...patch, id: courseId };
+    await upsertCourse(updated);
+    setCourses((prev) => prev.map((c) => (c.id === courseId ? { ...c, ...patch } : c)));
+  };
+  const deleteCourse = async (courseId) => {
+    await deleteCourseRow(courseId);
+    setCourses((prev) => prev.filter((c) => c.id !== courseId));
+  };
 
   if (booting) {
     return (
@@ -496,6 +730,7 @@ export default function App() {
 
 // ---------- Header ----------
 function Header({ currentUser, onLogout, view, setView, setActiveCourseId }) {
+  const { canInstall, promptInstall } = useInstallPrompt();
   return (
     <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-rose-100 shadow-sm">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
@@ -512,28 +747,40 @@ function Header({ currentUser, onLogout, view, setView, setActiveCourseId }) {
           </div>
         </button>
 
-        {currentUser && (
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <NavBtn active={view === "catalog"} onClick={() => { setView("catalog"); setActiveCourseId(null); }} label="Catalogo" />
-            <NavBtn active={view === "dashboard"} onClick={() => setView("dashboard")} label="I miei corsi" />
-            {currentUser.role === "admin" && (
-              <NavBtn active={view === "admin"} onClick={() => setView("admin")} label="Admin" icon={<ShieldCheck className="w-3.5 h-3.5" />} />
-            )}
-            <div className="hidden sm:flex items-center gap-2 ml-2 pl-2 border-l border-gray-200">
-              <div className="w-7 h-7 rounded-full bg-rose-100 flex items-center justify-center">
-                <User className="w-4 h-4 text-rose-600" />
-              </div>
-              <span className="text-sm text-gray-700 font-medium max-w-[100px] truncate">{currentUser.name}</span>
-            </div>
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {canInstall && (
             <button
-              onClick={onLogout}
-              className="ml-1 p-2 rounded-lg hover:bg-rose-50 text-gray-500 hover:text-rose-600 transition-colors"
-              title="Esci"
+              onClick={promptInstall}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium bg-gray-900 text-white hover:bg-gray-800 transition-all"
+              title="Installa l'app sul telefono"
             >
-              <LogOut className="w-4 h-4" />
+              <Smartphone className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Installa app</span>
             </button>
-          </div>
-        )}
+          )}
+          {currentUser && (
+            <>
+              <NavBtn active={view === "catalog"} onClick={() => { setView("catalog"); setActiveCourseId(null); }} label="Catalogo" />
+              <NavBtn active={view === "dashboard"} onClick={() => setView("dashboard")} label="I miei corsi" />
+              {currentUser.role === "admin" && (
+                <NavBtn active={view === "admin"} onClick={() => setView("admin")} label="Admin" icon={<ShieldCheck className="w-3.5 h-3.5" />} />
+              )}
+              <div className="hidden sm:flex items-center gap-2 ml-2 pl-2 border-l border-gray-200">
+                <div className="w-7 h-7 rounded-full bg-rose-100 flex items-center justify-center">
+                  <User className="w-4 h-4 text-rose-600" />
+                </div>
+                <span className="text-sm text-gray-700 font-medium max-w-[100px] truncate">{currentUser.name}</span>
+              </div>
+              <button
+                onClick={onLogout}
+                className="ml-1 p-2 rounded-lg hover:bg-rose-50 text-gray-500 hover:text-rose-600 transition-colors"
+                title="Esci"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -558,10 +805,15 @@ function AuthScreen({ mode, setMode, onLogin, onRegister, error }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [registered, setRegistered] = useState(false);
 
-  const submit = () => {
-    if (mode === "login") onLogin(email, password);
-    else onRegister(name, email, password);
+  const submit = async () => {
+    if (mode === "login") {
+      onLogin(email, password);
+    } else {
+      await onRegister(name, email, password);
+      setRegistered(true);
+    }
   };
 
   const onKeyDown = (e) => {
@@ -584,74 +836,91 @@ function AuthScreen({ mode, setMode, onLogin, onRegister, error }) {
         <div className="bg-white rounded-2xl shadow-xl border border-rose-100 p-6 sm:p-8">
           <div className="flex gap-1 mb-6 bg-rose-50 rounded-xl p-1">
             <button
-              onClick={() => setMode("login")}
+              onClick={() => { setMode("login"); setRegistered(false); }}
               className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${mode === "login" ? "bg-white shadow-sm text-rose-700" : "text-gray-500"}`}
             >
               Accedi
             </button>
             <button
-              onClick={() => setMode("register")}
+              onClick={() => { setMode("register"); setRegistered(false); }}
               className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${mode === "register" ? "bg-white shadow-sm text-rose-700" : "text-gray-500"}`}
             >
               Registrati
             </button>
           </div>
 
-          <div className="space-y-4">
-            {mode === "register" && (
+          {mode === "register" && registered && !error ? (
+            <div className="text-center py-4">
+              <div className="w-14 h-14 rounded-full bg-rose-50 flex items-center justify-center mx-auto mb-4">
+                <LogIn className="w-6 h-6 text-rose-600" />
+              </div>
+              <h3 className="font-bold text-gray-900 mb-2">Controlla la tua email!</h3>
+              <p className="text-sm text-gray-500">
+                Ti abbiamo inviato un link di conferma a <span className="font-medium text-gray-700">{email}</span>. Clicca sul link per attivare il tuo account, poi torna qui e accedi.
+              </p>
+              <button
+                onClick={() => { setMode("login"); setRegistered(false); }}
+                className="mt-5 text-sm font-semibold text-rose-600 hover:text-rose-700"
+              >
+                Torna al login →
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {mode === "register" && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Nome e cognome</label>
+                  <input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    onKeyDown={onKeyDown}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 focus:border-rose-400 focus:ring-2 focus:ring-rose-100 outline-none text-sm"
+                    placeholder="Es. Mario Rossi"
+                  />
+                </div>
+              )}
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Nome e cognome</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
                 <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   onKeyDown={onKeyDown}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 focus:border-rose-400 focus:ring-2 focus:ring-rose-100 outline-none text-sm"
-                  placeholder="Es. Mario Rossi"
+                  placeholder="nome@email.it"
                 />
               </div>
-            )}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={onKeyDown}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 focus:border-rose-400 focus:ring-2 focus:ring-rose-100 outline-none text-sm"
-                placeholder="nome@email.it"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={onKeyDown}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 focus:border-rose-400 focus:ring-2 focus:ring-rose-100 outline-none text-sm"
-                placeholder="••••••••"
-              />
-            </div>
-
-            {error && (
-              <div className="flex items-start gap-2 text-red-600 text-xs bg-red-50 rounded-lg p-2.5">
-                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <span>{error}</span>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={onKeyDown}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 focus:border-rose-400 focus:ring-2 focus:ring-rose-100 outline-none text-sm"
+                  placeholder="••••••••"
+                />
+                {mode === "register" && (
+                  <p className="text-[11px] text-gray-400 mt-1">Almeno 6 caratteri.</p>
+                )}
               </div>
-            )}
 
-            <button
-              onClick={submit}
-              className="w-full bg-gradient-to-r from-rose-600 to-red-700 text-white font-semibold py-2.5 rounded-xl shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2"
-            >
-              <LogIn className="w-4 h-4" />
-              {mode === "login" ? "Accedi" : "Crea account"}
-            </button>
-          </div>
+              {error && (
+                <div className="flex items-start gap-2 text-red-600 text-xs bg-red-50 rounded-lg p-2.5">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <span>{error}</span>
+                </div>
+              )}
 
-          <p className="text-[11px] text-gray-400 text-center mt-5">
-            Suggerimento: registrati con <span className="font-mono text-rose-500">admin@aido.it</span> per accedere come amministratore di prova.
-          </p>
+              <button
+                onClick={submit}
+                className="w-full bg-gradient-to-r from-rose-600 to-red-700 text-white font-semibold py-2.5 rounded-xl shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+              >
+                <LogIn className="w-4 h-4" />
+                {mode === "login" ? "Accedi" : "Crea account"}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
