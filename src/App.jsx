@@ -808,6 +808,7 @@ export default function App() {
         onToggleModule={toggleModuleComplete}
         onSubmitQuiz={submitQuiz}
         onBack={() => setView("catalog")}
+        currentUser={currentUser}
       />
     );
   } else if (view === "dashboard") {
@@ -820,6 +821,7 @@ export default function App() {
         currentUser={currentUser}
         userRole={userRole}
         onChangeRole={() => setUserRole(null)}
+        currentUser={currentUser}
       />
     );
   } else {
@@ -1198,7 +1200,7 @@ function AuthScreen({ mode, setMode, onLogin, onRegister, error }) {
 }
 
 // ---------- Catalog ----------
-function CatalogView({ courses, search, setSearch, trackFilter, setTrackFilter, courseCompletionPct, onOpenCourse, userRole, onChangeRole }) {
+function CatalogView({ courses, search, setSearch, trackFilter, setTrackFilter, courseCompletionPct, onOpenCourse, userRole, onChangeRole, currentUser }) {
   const filtered = courses.filter((c) => {
     const matchesSearch = c.title.toLowerCase().includes(search.toLowerCase()) || c.description.toLowerCase().includes(search.toLowerCase());
     const matchesTrack = trackFilter === "all" || c.track === trackFilter;
@@ -1266,6 +1268,7 @@ function CatalogView({ courses, search, setSearch, trackFilter, setTrackFilter, 
               pct={courseCompletionPct(c)}
               onClick={() => onOpenCourse(c.id)}
               requirement={userRole ? getCourseRequirement(c.id, userRole) : null}
+              currentUser={currentUser}
             />
           ))}
         </div>
@@ -1288,53 +1291,60 @@ function FilterChip({ active, onClick, label, color }) {
   );
 }
 
-function CourseCard({ course, pct, onClick, requirement }) {
+function CourseCard({ course, pct, onClick, requirement, currentUser }) {
   const Icon = ICONS[course.icon] || FileText;
   const track = TRACKS[course.track];
   const req = requirement ? REQUIREMENT_STYLES[requirement] : null;
   return (
-    <button
-      onClick={onClick}
-      className="text-left bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all p-5 flex flex-col gap-3 group"
-    >
-      <div className="flex items-start justify-between">
-        <div
-          className="w-11 h-11 rounded-xl flex items-center justify-center shadow-sm"
-          style={{ backgroundColor: track.color }}
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all overflow-hidden flex flex-col">
+      <button onClick={onClick} className="text-left p-5 flex flex-col gap-3 group flex-1">
+        <div className="flex items-start justify-between">
+          <div
+            className="w-11 h-11 rounded-xl flex items-center justify-center shadow-sm"
+            style={{ backgroundColor: track.color }}
+          >
+            <Icon className="w-5 h-5 text-white" />
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            {pct === 100 && (
+              <span className="flex items-center gap-1 text-emerald-600 text-[11px] font-bold bg-emerald-50 px-2 py-1 rounded-full">
+                <CheckCircle2 className="w-3 h-3" /> Completato
+              </span>
+            )}
+            {req && (
+              <span
+                className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                style={{ color: req.color, backgroundColor: req.bg }}
+              >
+                {req.label}
+              </span>
+            )}
+          </div>
+        </div>
+        <div>
+          <div className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: track.color }}>{track.label}</div>
+          <h3 className="font-bold text-gray-900 mt-1 group-hover:text-rose-700 transition-colors leading-snug">{course.title}</h3>
+          <p className="text-xs text-gray-500 mt-1.5 line-clamp-2">{course.description}</p>
+        </div>
+        <div className="mt-auto pt-2">
+          <div className="flex items-center justify-between text-[11px] text-gray-400 mb-1">
+            <span>{course.modules.length} contenuti + quiz</span>
+            <span className="font-semibold text-gray-600">{pct}%</span>
+          </div>
+          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: track.color }} />
+          </div>
+        </div>
+      </button>
+      {pct === 100 && currentUser && (
+        <button
+          onClick={(e) => { e.stopPropagation(); downloadCertificate(currentUser.name, course.title); }}
+          className="flex items-center justify-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 py-2.5 transition-colors border-t border-amber-100"
         >
-          <Icon className="w-5 h-5 text-white" />
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          {pct === 100 && (
-            <span className="flex items-center gap-1 text-emerald-600 text-[11px] font-bold bg-emerald-50 px-2 py-1 rounded-full">
-              <CheckCircle2 className="w-3 h-3" /> Completato
-            </span>
-          )}
-          {req && (
-            <span
-              className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-              style={{ color: req.color, backgroundColor: req.bg }}
-            >
-              {req.label}
-            </span>
-          )}
-        </div>
-      </div>
-      <div>
-        <div className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: track.color }}>{track.label}</div>
-        <h3 className="font-bold text-gray-900 mt-1 group-hover:text-rose-700 transition-colors leading-snug">{course.title}</h3>
-        <p className="text-xs text-gray-500 mt-1.5 line-clamp-2">{course.description}</p>
-      </div>
-      <div className="mt-auto pt-2">
-        <div className="flex items-center justify-between text-[11px] text-gray-400 mb-1">
-          <span>{course.modules.length} contenuti + quiz</span>
-          <span className="font-semibold text-gray-600">{pct}%</span>
-        </div>
-        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: track.color }} />
-        </div>
-      </div>
-    </button>
+          <Award className="w-3.5 h-3.5" /> Scarica attestato
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -1390,7 +1400,7 @@ function DashboardView({ courses, userProgress, courseCompletionPct, onOpenCours
               <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">In corso</h3>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {inProgress.map((c) => (
-                  <CourseCard key={c.id} course={c} pct={courseCompletionPct(c)} onClick={() => onOpenCourse(c.id)} requirement={userRole ? getCourseRequirement(c.id, userRole) : null} />
+                  <CourseCard key={c.id} course={c} pct={courseCompletionPct(c)} onClick={() => onOpenCourse(c.id)} requirement={userRole ? getCourseRequirement(c.id, userRole) : null} currentUser={currentUser} />
                 ))}
               </div>
             </div>
@@ -1400,7 +1410,7 @@ function DashboardView({ courses, userProgress, courseCompletionPct, onOpenCours
               <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Completati</h3>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {completed.map((c) => (
-                  <CourseCard key={c.id} course={c} pct={courseCompletionPct(c)} onClick={() => onOpenCourse(c.id)} requirement={userRole ? getCourseRequirement(c.id, userRole) : null} />
+                  <CourseCard key={c.id} course={c} pct={courseCompletionPct(c)} onClick={() => onOpenCourse(c.id)} requirement={userRole ? getCourseRequirement(c.id, userRole) : null} currentUser={currentUser} />
                 ))}
               </div>
             </div>
@@ -1426,7 +1436,7 @@ function StatCard({ icon, label, value, color }) {
 }
 
 // ---------- Course View ----------
-function CourseView({ course, progress, onToggleModule, onSubmitQuiz, onBack }) {
+function CourseView({ course, progress, onToggleModule, onSubmitQuiz, onBack, currentUser }) {
   const [quizOpen, setQuizOpen] = useState(false);
 
   if (!course) {
@@ -1470,6 +1480,14 @@ function CourseView({ course, progress, onToggleModule, onSubmitQuiz, onBack }) 
             <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: track.color }} />
           </div>
         </div>
+        {pct === 100 && currentUser && (
+          <button
+            onClick={() => downloadCertificate(currentUser.name, course.title)}
+            className="mt-4 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold py-2.5 rounded-xl shadow-sm hover:shadow-md transition-all text-sm"
+          >
+            <Award className="w-4 h-4" /> Scarica attestato di completamento
+          </button>
+        )}
       </div>
 
       <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Contenuti del corso</h3>
@@ -1547,6 +1565,80 @@ function PartnersSection({ courseId }) {
       </div>
     </div>
   );
+}
+
+// ---------- Attestato di completamento ----------
+function generateCertificate(userName, courseTitle, dateStr) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1200;
+  canvas.height = 850;
+  const ctx = canvas.getContext("2d");
+
+  // Sfondo
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Cornice
+  ctx.strokeStyle = "#ED1C24";
+  ctx.lineWidth = 10;
+  ctx.strokeRect(30, 30, canvas.width - 60, canvas.height - 60);
+  ctx.strokeStyle = "#7a1f2b";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(50, 50, canvas.width - 100, canvas.height - 100);
+
+  // Goccia logo stilizzata
+  ctx.fillStyle = "#ED1C24";
+  ctx.beginPath();
+  ctx.moveTo(600, 110);
+  ctx.bezierCurveTo(520, 200, 480, 270, 480, 310);
+  ctx.bezierCurveTo(480, 360, 535, 395, 600, 395);
+  ctx.bezierCurveTo(665, 395, 720, 360, 720, 310);
+  ctx.bezierCurveTo(720, 270, 680, 200, 600, 110);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 60px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("A", 600, 330);
+
+  // Titolo
+  ctx.fillStyle = "#1f2937";
+  ctx.font = "bold 28px Arial";
+  ctx.fillText("aidoAcademy", 600, 440);
+  ctx.font = "16px Arial";
+  ctx.fillStyle = "#9ca3af";
+  ctx.fillText("Formazione e Innovazione per la Cultura del Dono", 600, 465);
+
+  ctx.font = "20px Arial";
+  ctx.fillStyle = "#6b7280";
+  ctx.fillText("Attestato di completamento", 600, 530);
+
+  ctx.font = "bold 38px Arial";
+  ctx.fillStyle = "#111827";
+  ctx.fillText(userName, 600, 590);
+
+  ctx.font = "18px Arial";
+  ctx.fillStyle = "#6b7280";
+  ctx.fillText("ha completato con successo il corso", 600, 630);
+
+  ctx.font = "bold 26px Arial";
+  ctx.fillStyle = "#ED1C24";
+  ctx.fillText(courseTitle, 600, 675);
+
+  ctx.font = "16px Arial";
+  ctx.fillStyle = "#9ca3af";
+  ctx.fillText(`Data di completamento: ${dateStr}`, 600, 740);
+
+  return canvas.toDataURL("image/png");
+}
+
+function downloadCertificate(userName, courseTitle) {
+  const dateStr = new Date().toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" });
+  const dataUrl = generateCertificate(userName, courseTitle, dateStr);
+  const link = document.createElement("a");
+  link.href = dataUrl;
+  link.download = `Attestato-${courseTitle.replace(/[^a-zA-Z0-9]/g, "_")}.png`;
+  link.click();
 }
 
 function ModuleItem({ module, index, done, onToggle }) {
