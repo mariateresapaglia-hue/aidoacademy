@@ -352,22 +352,26 @@ const REQUIREMENT_STYLES = {
 
 // ---------- Docenti e Partner ----------
 const PARTNERS = {
-  "aido": { name: "AIDO", role: "Formazione interna e governance associativa", bio: "" },
-  "cnt": { name: "CNT — Centro Nazionale Trapianti", role: "Formazione medico-scientifica sulla donazione", bio: "" },
-  "e-ius": { name: "e-IUS", role: "Formazione, progettazione e fundraising", bio: "" },
-  "valentina-novembre": { name: "Valentina Novembre", role: "Comunicazione digitale e social media", bio: "" },
-  "guido-savelli": { name: "Guido Savelli", role: "Privacy e GDPR", bio: "" },
-  "medici-trapiantologi": { name: "Medici Trapiantologi", role: "Aspetti clinici della donazione", bio: "" },
-  "psicologo-coachleader": { name: "Psicologo / Coachleader", role: "Mediazione e gestione dei gruppi", bio: "" },
-  "flavio-petrini": { name: "Flavio Petrini", role: "Progettazione e bandi", bio: "" },
-  "corrado-vella": { name: "Corrado Vella", role: "Progettazione e bandi", bio: "" },
+  "aido": { name: "AIDO", role: "Formazione interna e governance associativa", bio: "", color: "#ED1C24", logo: "/aido-logo.svg" },
+  "cnt": { name: "CNT — Centro Nazionale Trapianti", role: "Formazione medico-scientifica sulla donazione", bio: "", color: "#E63946", logo: "/partner_cnt.png" },
+  "e-ius": { name: "e-IUS", role: "Formazione, progettazione e fundraising", bio: "", color: "#5A8F69", logo: "/partener_eius.png" },
+  "privacy-italia": { name: "Privacy Italia", role: "Consulenza su privacy e GDPR", bio: "", color: "#1E6FA8", logo: "/partner_privacyitalia.png" },
+  "valentina-novembre": { name: "Valentina Novembre", role: "Comunicazione digitale e social media", bio: "", color: "#9333ea" },
+  "guido-savelli": { name: "Guido Savelli", role: "Privacy e GDPR", bio: "", color: "#1E6FA8" },
+  "medici-trapiantologi": { name: "Medici Trapiantologi", role: "Aspetti clinici della donazione", bio: "", color: "#E63946" },
+  "psicologo-coachleader": { name: "Psicologo / Coachleader", role: "Mediazione e gestione dei gruppi", bio: "", color: "#9333ea" },
+  "flavio-petrini": { name: "Flavio Petrini", role: "Progettazione e bandi", bio: "", color: "#5A8F69" },
+  "corrado-vella": { name: "Corrado Vella", role: "Progettazione e bandi", bio: "", color: "#5A8F69" },
 };
+
+// Partner istituzionali principali, mostrati nella schermata iniziale
+const MAIN_PARTNERS = ["aido", "cnt", "e-ius", "privacy-italia"];
 
 // Collega ogni corso ai relativi docenti/partner (chiavi di PARTNERS)
 const COURSE_PARTNERS = {
   "c-statuto": ["medici-trapiantologi"],
   "c-runts": ["aido"],
-  "c-privacy": ["guido-savelli"],
+  "c-privacy": ["guido-savelli", "privacy-italia"],
   "c-segreteria": ["aido"],
   "c-bilancio": ["aido"],
   "c-piattaforme": ["aido", "e-ius"],
@@ -861,6 +865,41 @@ export default function App() {
   );
 }
 
+// ---------- Partner badge (usa il logo reale se disponibile, altrimenti iniziali) ----------
+function PartnerBadge({ partnerKey, size = "md" }) {
+  const p = PARTNERS[partnerKey];
+  if (!p) return null;
+  const sizes = {
+    sm: "w-9 h-9 text-[10px]",
+    md: "w-12 h-12 text-xs",
+  };
+  const initials = p.name
+    .split(/[\s-]/)
+    .filter((w) => w.length > 0 && w[0] === w[0].toUpperCase())
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 3) || p.name.slice(0, 2);
+
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      {p.logo ? (
+        <div className={`${sizes[size]} rounded-xl bg-white border border-gray-100 shadow-sm flex items-center justify-center p-1.5 overflow-hidden`}>
+          <img src={p.logo} alt={p.name} className="w-full h-full object-contain" />
+        </div>
+      ) : (
+        <div
+          className={`${sizes[size]} rounded-xl flex items-center justify-center font-extrabold text-white shadow-sm`}
+          style={{ backgroundColor: p.color }}
+        >
+          {initials}
+        </div>
+      )}
+      <span className="text-[10px] text-gray-500 text-center leading-tight max-w-[80px]">{p.name}</span>
+    </div>
+  );
+}
+
 // ---------- Reti di Valore - Project Context ----------
 function ProjectContextBanner() {
   const actions = [
@@ -903,6 +942,15 @@ function ProjectContextBanner() {
               </div>
             );
           })}
+        </div>
+
+        <div className="flex items-center justify-center gap-6 mt-5 pt-4 border-t border-rose-100/60">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Con il supporto di</span>
+          <div className="flex gap-4">
+            {MAIN_PARTNERS.map((key) => (
+              <PartnerBadge key={key} partnerKey={key} size="sm" />
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -1487,9 +1535,7 @@ function PartnersSection({ courseId }) {
           if (!p) return null;
           return (
             <div key={key} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center flex-shrink-0">
-                <User className="w-5 h-5 text-rose-600" />
-              </div>
+              <PartnerBadge partnerKey={key} size="md" />
               <div>
                 <div className="font-bold text-gray-900 text-sm">{p.name}</div>
                 <div className="text-xs text-gray-500 mt-0.5">{p.role}</div>
