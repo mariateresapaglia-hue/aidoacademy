@@ -353,9 +353,9 @@ const REQUIREMENT_STYLES = {
 // ---------- Docenti e Partner ----------
 const PARTNERS = {
   "aido": { name: "AIDO", role: "Formazione interna e governance associativa", bio: "", color: "#ED1C24", logo: "/aido-logo.svg" },
-  "cnt": { name: "CNT — Centro Nazionale Trapianti", role: "Formazione medico-scientifica sulla donazione", bio: "", color: "#E63946", logo: "/partner_cnt.png" },
-  "e-ius": { name: "e-IUS", role: "Formazione, progettazione e fundraising", bio: "", color: "#5A8F69", logo: "/partener_eius.png" },
-  "privacy-italia": { name: "Privacy Italia", role: "Consulenza su privacy e GDPR", bio: "", color: "#1E6FA8", logo: "/partner_privacyitalia.png" },
+  "cnt": { name: "CNT — Centro Nazionale Trapianti", role: "Formazione medico-scientifica sulla donazione", bio: "", color: "#E63946", logo: "/partner-cnt.png" },
+  "e-ius": { name: "e-IUS", role: "Formazione, progettazione e fundraising", bio: "", color: "#5A8F69", logo: "/partner-eius.png" },
+  "privacy-italia": { name: "Privacy Italia", role: "Consulenza su privacy e GDPR", bio: "", color: "#1E6FA8", logo: "/partner-privacyitalia.png" },
   "valentina-novembre": { name: "Valentina Novembre", role: "Comunicazione digitale e social media", bio: "", color: "#9333ea" },
   "guido-savelli": { name: "Guido Savelli", role: "Privacy e GDPR", bio: "", color: "#1E6FA8" },
   "medici-trapiantologi": { name: "Medici Trapiantologi", role: "Aspetti clinici della donazione", bio: "", color: "#E63946" },
