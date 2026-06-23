@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import {
   GraduationCap, Database, Laptop, Megaphone, Shield, FileText, Lock,
@@ -797,6 +796,7 @@ export default function App() {
         courseCompletionPct={courseCompletionPct}
         onOpenCourse={(id) => { setActiveCourseId(id); setView("course"); }}
         userRole={userRole}
+        onChangeRole={() => setUserRole(null)}
       />
     );
   }
@@ -1117,7 +1117,7 @@ function AuthScreen({ mode, setMode, onLogin, onRegister, error }) {
 }
 
 // ---------- Catalog ----------
-function CatalogView({ courses, search, setSearch, trackFilter, setTrackFilter, courseCompletionPct, onOpenCourse, userRole }) {
+function CatalogView({ courses, search, setSearch, trackFilter, setTrackFilter, courseCompletionPct, onOpenCourse, userRole, onChangeRole }) {
   const filtered = courses.filter((c) => {
     const matchesSearch = c.title.toLowerCase().includes(search.toLowerCase()) || c.description.toLowerCase().includes(search.toLowerCase());
     const matchesTrack = trackFilter === "all" || c.track === trackFilter;
@@ -1135,11 +1135,21 @@ function CatalogView({ courses, search, setSearch, trackFilter, setTrackFilter, 
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-      <div className="mb-8">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-1">
         <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Catalogo Corsi</h2>
+        {userRole && (
+          <button
+            onClick={onChangeRole}
+            className="flex items-center gap-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 px-3 py-1.5 rounded-full"
+          >
+            <User className="w-3.5 h-3.5" /> {ROLES[userRole]?.label} · Cambia profilo
+          </button>
+        )}
+      </div>
+      <div className="mb-8">
         <p className="text-gray-500 mt-1 text-sm sm:text-base">
           {userRole
-            ? `Corsi ordinati per priorità in base al tuo profilo: ${ROLES[userRole]?.label}.`
+            ? `Corsi ordinati per priorità in base al tuo profilo.`
             : "Formazione continua per volontari, dirigenti e responsabili AIDO — accessibile sempre, anche in modalità asincrona."}
         </p>
       </div>
