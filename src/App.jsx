@@ -350,6 +350,39 @@ const REQUIREMENT_STYLES = {
   facoltativo: { label: "Facoltativo", color: "#9ca3af", bg: "#f9fafb" },
 };
 
+// ---------- Docenti e Partner ----------
+const PARTNERS = {
+  "aido": { name: "AIDO", role: "Formazione interna e governance associativa", bio: "" },
+  "cnt": { name: "CNT — Centro Nazionale Trapianti", role: "Formazione medico-scientifica sulla donazione", bio: "" },
+  "e-ius": { name: "e-IUS", role: "Formazione, progettazione e fundraising", bio: "" },
+  "valentina-novembre": { name: "Valentina Novembre", role: "Comunicazione digitale e social media", bio: "" },
+  "guido-savelli": { name: "Guido Savelli", role: "Privacy e GDPR", bio: "" },
+  "medici-trapiantologi": { name: "Medici Trapiantologi", role: "Aspetti clinici della donazione", bio: "" },
+  "psicologo-coachleader": { name: "Psicologo / Coachleader", role: "Mediazione e gestione dei gruppi", bio: "" },
+  "flavio-petrini": { name: "Flavio Petrini", role: "Progettazione e bandi", bio: "" },
+  "corrado-vella": { name: "Corrado Vella", role: "Progettazione e bandi", bio: "" },
+};
+
+// Collega ogni corso ai relativi docenti/partner (chiavi di PARTNERS)
+const COURSE_PARTNERS = {
+  "c-statuto": ["medici-trapiantologi"],
+  "c-runts": ["aido"],
+  "c-privacy": ["guido-savelli"],
+  "c-segreteria": ["aido"],
+  "c-bilancio": ["aido"],
+  "c-piattaforme": ["aido", "e-ius"],
+  "c-comunicazione": ["e-ius"],
+  "c-leadership": ["psicologo-coachleader"],
+  "c-volontario": ["e-ius"],
+  "c-digital": ["valentina-novembre"],
+  "c-scuola": ["aido"],
+  "c-alfabetizzazione": ["valentina-novembre", "e-ius"],
+  "c-fundraising": ["e-ius"],
+  "c-progettazione": ["flavio-petrini", "corrado-vella"],
+  "c-donazione": ["cnt", "medici-trapiantologi"],
+  "c-stilivita": ["medici-trapiantologi"],
+};
+
 // ---------- Supabase Auth helpers ----------
 async function signUpUser(name, email, password) {
   await supabaseReady;
@@ -1404,6 +1437,8 @@ function CourseView({ course, progress, onToggleModule, onSubmitQuiz, onBack }) 
         ))}
       </div>
 
+      <PartnersSection courseId={course.id} />
+
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <button
           onClick={() => setQuizOpen((o) => !o)}
@@ -1433,6 +1468,36 @@ function CourseView({ course, progress, onToggleModule, onSubmitQuiz, onBack }) 
             />
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ---------- Docenti e Partner del corso ----------
+function PartnersSection({ courseId }) {
+  const partnerKeys = COURSE_PARTNERS[courseId] || [];
+  if (partnerKeys.length === 0) return null;
+
+  return (
+    <div className="mb-6">
+      <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Docenti e Partner</h3>
+      <div className="grid sm:grid-cols-2 gap-3">
+        {partnerKeys.map((key) => {
+          const p = PARTNERS[key];
+          if (!p) return null;
+          return (
+            <div key={key} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center flex-shrink-0">
+                <User className="w-5 h-5 text-rose-600" />
+              </div>
+              <div>
+                <div className="font-bold text-gray-900 text-sm">{p.name}</div>
+                <div className="text-xs text-gray-500 mt-0.5">{p.role}</div>
+                {p.bio && <p className="text-xs text-gray-400 mt-1.5">{p.bio}</p>}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
