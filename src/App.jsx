@@ -1568,7 +1568,17 @@ function PartnersSection({ courseId }) {
 }
 
 // ---------- Attestato di completamento ----------
-function generateCertificate(userName, courseTitle, dateStr) {
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+async function generateCertificate(userName, courseTitle, dateStr) {
   const canvas = document.createElement("canvas");
   canvas.width = 1200;
   canvas.height = 850;
@@ -1586,55 +1596,59 @@ function generateCertificate(userName, courseTitle, dateStr) {
   ctx.lineWidth = 2;
   ctx.strokeRect(50, 50, canvas.width - 100, canvas.height - 100);
 
-  // Goccia logo stilizzata
-  ctx.fillStyle = "#ED1C24";
-  ctx.beginPath();
-  ctx.moveTo(600, 110);
-  ctx.bezierCurveTo(520, 200, 480, 270, 480, 310);
-  ctx.bezierCurveTo(480, 360, 535, 395, 600, 395);
-  ctx.bezierCurveTo(665, 395, 720, 360, 720, 310);
-  ctx.bezierCurveTo(720, 270, 680, 200, 600, 110);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 60px Arial";
-  ctx.textAlign = "center";
-  ctx.fillText("A", 600, 330);
+  // Logo AIDO ufficiale
+  try {
+    const logoImg = await loadImage("/aido-logo.svg");
+    const logoSize = 130;
+    ctx.drawImage(logoImg, 600 - logoSize / 2, 95, logoSize, logoSize);
+  } catch {
+    // Fallback: goccia stilizzata se il logo non si carica
+    ctx.fillStyle = "#ED1C24";
+    ctx.beginPath();
+    ctx.moveTo(600, 110);
+    ctx.bezierCurveTo(520, 200, 480, 270, 480, 310);
+    ctx.bezierCurveTo(480, 360, 535, 395, 600, 395);
+    ctx.bezierCurveTo(665, 395, 720, 360, 720, 310);
+    ctx.bezierCurveTo(720, 270, 680, 200, 600, 110);
+    ctx.closePath();
+    ctx.fill();
+  }
 
   // Titolo
   ctx.fillStyle = "#1f2937";
-  ctx.font = "bold 28px Arial";
-  ctx.fillText("aidoAcademy", 600, 440);
+  ctx.font = "bold 32px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("AIDOACADEMY", 600, 470);
   ctx.font = "16px Arial";
   ctx.fillStyle = "#9ca3af";
-  ctx.fillText("Formazione e Innovazione per la Cultura del Dono", 600, 465);
+  ctx.fillText("Formazione e Innovazione per la Cultura del Dono", 600, 495);
 
   ctx.font = "20px Arial";
   ctx.fillStyle = "#6b7280";
-  ctx.fillText("Attestato di completamento", 600, 530);
+  ctx.fillText("Attestato di completamento", 600, 555);
 
-  ctx.font = "bold 38px Arial";
+  ctx.font = "bold 42px Arial";
   ctx.fillStyle = "#111827";
-  ctx.fillText(userName, 600, 590);
+  ctx.fillText(userName.toUpperCase(), 600, 615);
 
   ctx.font = "18px Arial";
   ctx.fillStyle = "#6b7280";
-  ctx.fillText("ha completato con successo il corso", 600, 630);
+  ctx.fillText("ha completato con successo il corso", 600, 655);
 
   ctx.font = "bold 26px Arial";
   ctx.fillStyle = "#ED1C24";
-  ctx.fillText(courseTitle, 600, 675);
+  ctx.fillText(courseTitle, 600, 700);
 
   ctx.font = "16px Arial";
   ctx.fillStyle = "#9ca3af";
-  ctx.fillText(`Data di completamento: ${dateStr}`, 600, 740);
+  ctx.fillText(`Data di completamento: ${dateStr}`, 600, 755);
 
   return canvas.toDataURL("image/png");
 }
 
-function downloadCertificate(userName, courseTitle) {
+async function downloadCertificate(userName, courseTitle) {
   const dateStr = new Date().toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" });
-  const dataUrl = generateCertificate(userName, courseTitle, dateStr);
+  const dataUrl = await generateCertificate(userName, courseTitle, dateStr);
   const link = document.createElement("a");
   link.href = dataUrl;
   link.download = `Attestato-${courseTitle.replace(/[^a-zA-Z0-9]/g, "_")}.png`;
