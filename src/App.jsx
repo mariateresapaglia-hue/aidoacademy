@@ -275,6 +275,82 @@ const TRACKS = {
   operative: { label: "Competenze Operative e Relazionali", color: "#e8233c" },
 };
 
+// ---------- Matrice Formativa per Ruolo Associativo ----------
+const COLUMN_TO_COURSES = {
+  1: ["c-statuto"],
+  2: ["c-runts"],
+  3: ["c-privacy"],
+  4: ["c-segreteria"],
+  5: ["c-bilancio"],
+  6: ["c-piattaforme"],
+  7: ["c-comunicazione", "c-digital"],
+  8: ["c-leadership"],
+  9: ["c-volontario", "c-scuola"],
+  10: ["c-donazione"],
+  11: ["c-fundraising", "c-progettazione"],
+  12: ["c-alfabetizzazione", "c-stilivita"],
+};
+
+const ROLES = {
+  "nuovo-volontario": {
+    label: "Nuovo Volontario",
+    obbligatori: [1, 2, 3, 7],
+    consigliati: [4, 5, 6, 8, 9],
+  },
+  "volontario-attivo": {
+    label: "Volontario Attivo",
+    obbligatori: [2],
+    consigliati: [1, 3, 4, 5, 6, 8, 9],
+  },
+  "referente-comunicazione": {
+    label: "Referente Comunicazione",
+    obbligatori: [2],
+    consigliati: [1, 3, 4, 5, 6, 7, 8, 9],
+  },
+  "segretario": {
+    label: "Segretario",
+    obbligatori: [2],
+    consigliati: [1, 3, 4, 5, 6, 7, 8, 9, 12],
+  },
+  "amministratore-tesoriere": {
+    label: "Amministratore / Tesoriere",
+    obbligatori: [3],
+    consigliati: [1, 2, 4, 6, 12],
+  },
+  "presidente-comunale": {
+    label: "Presidente Comunale",
+    obbligatori: [3, 4],
+    consigliati: [7, 8],
+  },
+  "presidente-provinciale": {
+    label: "Presidente Provinciale",
+    obbligatori: [],
+    consigliati: [4, 5, 6, 7, 8, 9],
+  },
+  "presidente-regionale": {
+    label: "Presidente Regionale",
+    obbligatori: [4],
+    consigliati: [7, 8, 9],
+  },
+};
+
+function getCourseRequirement(courseId, roleKey) {
+  if (!roleKey || !ROLES[roleKey]) return null;
+  const role = ROLES[roleKey];
+  const col = Object.entries(COLUMN_TO_COURSES).find(([, ids]) => ids.includes(courseId));
+  if (!col) return "facoltativo";
+  const colNum = parseInt(col[0], 10);
+  if (role.obbligatori.includes(colNum)) return "obbligatorio";
+  if (role.consigliati.includes(colNum)) return "consigliato";
+  return "facoltativo";
+}
+
+const REQUIREMENT_STYLES = {
+  obbligatorio: { label: "Obbligatorio", color: "#dc2626", bg: "#fef2f2" },
+  consigliato: { label: "Consigliato", color: "#ea580c", bg: "#fff7ed" },
+  facoltativo: { label: "Facoltativo", color: "#9ca3af", bg: "#f9fafb" },
+};
+
 // ---------- Supabase Auth helpers ----------
 async function signUpUser(name, email, password) {
   await supabaseReady;
@@ -315,6 +391,8 @@ async function getCurrentSession() {
   const { data } = await supabase.auth.getSession();
   return data.session;
 }
+
+// ---------- Supabase data helpers ----------
 async function fetchUsers() {
   await supabaseReady;
   if (!supabase) return {};
@@ -461,44 +539,27 @@ function useInstallPrompt() {
   return { canInstall: !!deferredPrompt && !installed, promptInstall };
 }
 
-// ---------- AIDO-style logo (original stylized drop, brand-consistent colors) ----------
+// ---------- AIDO-style logo ----------
 function AidoLogo({ className }) {
-  return (
-    <svg viewBox="0 0 100 90" className={className} xmlns="http://www.w3.org/2000/svg">
-      <path
-        d="M50 3C50 3 12 42 12 62C12 76.8 29.4 87 50 87C70.6 87 88 76.8 88 62C88 42 50 3 50 3Z"
-        fill="#ED1C24"
-      />
-      <text
-        x="50"
-        y="62"
-        textAnchor="middle"
-        fontFamily="Arial, sans-serif"
-        fontWeight="800"
-        fontSize="44"
-        fill="white"
-      >
-        A
-      </text>
-    </svg>
-  );
+  return <img src="/aido-logo.svg" alt="AIDO" className={`${className} object-contain`} />;
 }
 
 // ---------- Main App ----------
 export default function App() {
   const [booting, setBooting] = useState(true);
-  const [users, setUsers] = useState({}); // email -> {email, name, password, role}
+  const [users, setUsers] = useState({});
   const [courses, setCourses] = useState([]);
-  const [progress, setProgress] = useState({}); // email -> {courseId: {completedModules:[], quizPassed:bool, quizScore:num}}
-  const [accessLog, setAccessLog] = useState([]); // [{email, timestamp}]
+  const [progress, setProgress] = useState({});
+  const [accessLog, setAccessLog] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
-  const [view, setView] = useState("catalog"); // catalog | course | admin | dashboard
+  const [view, setView] = useState("catalog");
   const [activeCourseId, setActiveCourseId] = useState(null);
-  const [authMode, setAuthMode] = useState("login"); // login | register
+  const [authMode, setAuthMode] = useState("login");
   const [authError, setAuthError] = useState("");
   const [search, setSearch] = useState("");
   const [trackFilter, setTrackFilter] = useState("all");
   const [toast, setToast] = useState(null);
+  const [userRole, setUserRole] = useState(null);
 
   // Boot: load from Supabase
   useEffect(() => {
@@ -524,6 +585,9 @@ export default function App() {
           role: email === "admin@aido.it" ? "admin" : "volunteer",
         };
         setCurrentUser(known);
+        if (known.profile_role) {
+          setUserRole(known.profile_role);
+        }
       }
 
       setBooting(false);
@@ -550,7 +614,6 @@ export default function App() {
     if (error) { setAuthError(error); return; }
     setAuthError("");
     if (data?.session) {
-      // Email già confermata automaticamente (raro, dipende dalle impostazioni)
       const role = email === "admin@aido.it" ? "admin" : "volunteer";
       const newUser = { email, name, role };
       setUsers((prev) => ({ ...prev, [email]: newUser }));
@@ -580,6 +643,7 @@ export default function App() {
       role: email === "admin@aido.it" ? "admin" : "volunteer",
     };
     setCurrentUser(u);
+    if (u.profile_role) setUserRole(u.profile_role);
     setAuthError("");
     showToast(`Bentornato/a, ${u.name}!`);
     await logAccess(email);
@@ -588,8 +652,22 @@ export default function App() {
   const handleLogout = async () => {
     await signOutUser();
     setCurrentUser(null);
+    setUserRole(null);
     setView("catalog");
     setActiveCourseId(null);
+  };
+
+  const handleSelectRole = async (roleKey) => {
+    setUserRole(roleKey);
+    if (currentUser) {
+      const updated = { ...currentUser, profile_role: roleKey };
+      setCurrentUser(updated);
+      setUsers((prev) => ({ ...prev, [currentUser.email]: updated }));
+      await supabaseReady;
+      if (supabase) {
+        await supabase.from("users").update({ profile_role: roleKey }).eq("email", currentUser.email);
+      }
+    }
   };
 
   // ----- Progress -----
@@ -629,7 +707,7 @@ export default function App() {
   const courseCompletionPct = (course) => {
     const cp = userProgress[course.id];
     if (!cp) return 0;
-    const totalItems = course.modules.length + 1; // +1 for quiz
+    const totalItems = course.modules.length + 1;
     const done = cp.completedModules.length + (cp.quizPassed ? 1 : 0);
     return Math.round((done / totalItems) * 100);
   };
@@ -660,6 +738,69 @@ export default function App() {
     );
   }
 
+  // Determina cosa mostrare nel corpo principale
+  let mainContent;
+  if (!currentUser) {
+    mainContent = (
+      <AuthScreen
+        mode={authMode}
+        setMode={setAuthMode}
+        onLogin={handleLogin}
+        onRegister={handleRegister}
+        error={authError}
+      />
+    );
+  } else if (!userRole) {
+    mainContent = <RoleSelector onSelect={handleSelectRole} />;
+  } else if (view === "admin" && currentUser.role === "admin") {
+    mainContent = (
+      <AdminPanel
+        courses={courses}
+        onAdd={addCourse}
+        onUpdate={updateCourse}
+        onDelete={deleteCourse}
+        users={users}
+        progress={progress}
+        accessLog={accessLog}
+      />
+    );
+  } else if (view === "course" && activeCourseId) {
+    mainContent = (
+      <CourseView
+        course={courses.find((c) => c.id === activeCourseId)}
+        progress={userProgress[activeCourseId] || { completedModules: [], quizPassed: false }}
+        onToggleModule={toggleModuleComplete}
+        onSubmitQuiz={submitQuiz}
+        onBack={() => setView("catalog")}
+      />
+    );
+  } else if (view === "dashboard") {
+    mainContent = (
+      <DashboardView
+        courses={courses}
+        userProgress={userProgress}
+        courseCompletionPct={courseCompletionPct}
+        onOpenCourse={(id) => { setActiveCourseId(id); setView("course"); }}
+        currentUser={currentUser}
+        userRole={userRole}
+        onChangeRole={() => setUserRole(null)}
+      />
+    );
+  } else {
+    mainContent = (
+      <CatalogView
+        courses={courses}
+        search={search}
+        setSearch={setSearch}
+        trackFilter={trackFilter}
+        setTrackFilter={setTrackFilter}
+        courseCompletionPct={courseCompletionPct}
+        onOpenCourse={(id) => { setActiveCourseId(id); setView("course"); }}
+        userRole={userRole}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-rose-50 font-sans text-gray-800">
       <Header
@@ -682,51 +823,7 @@ export default function App() {
         </div>
       )}
 
-      {!currentUser ? (
-        <AuthScreen
-          mode={authMode}
-          setMode={setAuthMode}
-          onLogin={handleLogin}
-          onRegister={handleRegister}
-          error={authError}
-        />
-      ) : view === "admin" && currentUser.role === "admin" ? (
-        <AdminPanel
-          courses={courses}
-          onAdd={addCourse}
-          onUpdate={updateCourse}
-          onDelete={deleteCourse}
-          users={users}
-          progress={progress}
-          accessLog={accessLog}
-        />
-      ) : view === "course" && activeCourseId ? (
-        <CourseView
-          course={courses.find((c) => c.id === activeCourseId)}
-          progress={userProgress[activeCourseId] || { completedModules: [], quizPassed: false }}
-          onToggleModule={toggleModuleComplete}
-          onSubmitQuiz={submitQuiz}
-          onBack={() => setView("catalog")}
-        />
-      ) : view === "dashboard" ? (
-        <DashboardView
-          courses={courses}
-          userProgress={userProgress}
-          courseCompletionPct={courseCompletionPct}
-          onOpenCourse={(id) => { setActiveCourseId(id); setView("course"); }}
-          currentUser={currentUser}
-        />
-      ) : (
-        <CatalogView
-          courses={courses}
-          search={search}
-          setSearch={setSearch}
-          trackFilter={trackFilter}
-          setTrackFilter={setTrackFilter}
-          courseCompletionPct={courseCompletionPct}
-          onOpenCourse={(id) => { setActiveCourseId(id); setView("course"); }}
-        />
-      )}
+      {mainContent}
     </div>
   );
 }
@@ -778,6 +875,8 @@ function ProjectContextBanner() {
     </div>
   );
 }
+
+// ---------- Header ----------
 function Header({ currentUser, onLogout, view, setView, setActiveCourseId }) {
   const { canInstall, promptInstall } = useInstallPrompt();
   return (
@@ -846,6 +945,47 @@ function NavBtn({ active, onClick, label, icon }) {
       {icon}
       {label}
     </button>
+  );
+}
+
+// ---------- Role Selector ----------
+function RoleSelector({ onSelect }) {
+  return (
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12">
+      <div className="text-center mb-8">
+        <div className="w-14 h-14 rounded-2xl bg-rose-50 flex items-center justify-center mx-auto mb-4">
+          <Users className="w-7 h-7 text-rose-600" />
+        </div>
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Qual è il tuo ruolo in AIDO?</h2>
+        <p className="text-gray-500 mt-2 text-sm sm:text-base">
+          Seleziona il tuo profilo per vedere i corsi obbligatori e consigliati pensati per te.
+        </p>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-3">
+        {Object.entries(ROLES).map(([key, role]) => (
+          <button
+            key={key}
+            onClick={() => onSelect(key)}
+            className="text-left bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-rose-200 hover:-translate-y-0.5 transition-all p-5 flex items-center gap-3"
+          >
+            <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center flex-shrink-0">
+              <User className="w-5 h-5 text-rose-600" />
+            </div>
+            <div>
+              <div className="font-bold text-gray-900 text-sm">{role.label}</div>
+              <div className="text-xs text-gray-400 mt-0.5">
+                {role.obbligatori.length} corsi obbligatori · {role.consigliati.length} consigliati
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      <p className="text-center text-xs text-gray-400 mt-6">
+        Potrai cambiare il tuo profilo in qualsiasi momento dalla dashboard.
+      </p>
+    </div>
   );
 }
 
@@ -977,18 +1117,31 @@ function AuthScreen({ mode, setMode, onLogin, onRegister, error }) {
 }
 
 // ---------- Catalog ----------
-function CatalogView({ courses, search, setSearch, trackFilter, setTrackFilter, courseCompletionPct, onOpenCourse }) {
+function CatalogView({ courses, search, setSearch, trackFilter, setTrackFilter, courseCompletionPct, onOpenCourse, userRole }) {
   const filtered = courses.filter((c) => {
     const matchesSearch = c.title.toLowerCase().includes(search.toLowerCase()) || c.description.toLowerCase().includes(search.toLowerCase());
     const matchesTrack = trackFilter === "all" || c.track === trackFilter;
     return matchesSearch && matchesTrack;
   });
 
+  const order = { obbligatorio: 0, consigliato: 1, facoltativo: 2 };
+  const sorted = userRole
+    ? [...filtered].sort((a, b) => {
+        const ra = getCourseRequirement(a.id, userRole) || "facoltativo";
+        const rb = getCourseRequirement(b.id, userRole) || "facoltativo";
+        return order[ra] - order[rb];
+      })
+    : filtered;
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
       <div className="mb-8">
         <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Catalogo Corsi</h2>
-        <p className="text-gray-500 mt-1 text-sm sm:text-base">Formazione continua per volontari, dirigenti e responsabili AIDO — accessibile sempre, anche in modalità asincrona.</p>
+        <p className="text-gray-500 mt-1 text-sm sm:text-base">
+          {userRole
+            ? `Corsi ordinati per priorità in base al tuo profilo: ${ROLES[userRole]?.label}.`
+            : "Formazione continua per volontari, dirigenti e responsabili AIDO — accessibile sempre, anche in modalità asincrona."}
+        </p>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
@@ -1008,15 +1161,21 @@ function CatalogView({ courses, search, setSearch, trackFilter, setTrackFilter, 
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {sorted.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
           <Search className="w-10 h-10 mx-auto mb-3 opacity-40" />
           <p>Nessun corso trovato.</p>
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((c) => (
-            <CourseCard key={c.id} course={c} pct={courseCompletionPct(c)} onClick={() => onOpenCourse(c.id)} />
+          {sorted.map((c) => (
+            <CourseCard
+              key={c.id}
+              course={c}
+              pct={courseCompletionPct(c)}
+              onClick={() => onOpenCourse(c.id)}
+              requirement={userRole ? getCourseRequirement(c.id, userRole) : null}
+            />
           ))}
         </div>
       )}
@@ -1038,9 +1197,10 @@ function FilterChip({ active, onClick, label, color }) {
   );
 }
 
-function CourseCard({ course, pct, onClick }) {
+function CourseCard({ course, pct, onClick, requirement }) {
   const Icon = ICONS[course.icon] || FileText;
   const track = TRACKS[course.track];
+  const req = requirement ? REQUIREMENT_STYLES[requirement] : null;
   return (
     <button
       onClick={onClick}
@@ -1053,11 +1213,21 @@ function CourseCard({ course, pct, onClick }) {
         >
           <Icon className="w-5 h-5 text-white" />
         </div>
-        {pct === 100 && (
-          <span className="flex items-center gap-1 text-emerald-600 text-[11px] font-bold bg-emerald-50 px-2 py-1 rounded-full">
-            <CheckCircle2 className="w-3 h-3" /> Completato
-          </span>
-        )}
+        <div className="flex flex-col items-end gap-1">
+          {pct === 100 && (
+            <span className="flex items-center gap-1 text-emerald-600 text-[11px] font-bold bg-emerald-50 px-2 py-1 rounded-full">
+              <CheckCircle2 className="w-3 h-3" /> Completato
+            </span>
+          )}
+          {req && (
+            <span
+              className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+              style={{ color: req.color, backgroundColor: req.bg }}
+            >
+              {req.label}
+            </span>
+          )}
+        </div>
       </div>
       <div>
         <div className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: track.color }}>{track.label}</div>
@@ -1078,7 +1248,7 @@ function CourseCard({ course, pct, onClick }) {
 }
 
 // ---------- Dashboard ----------
-function DashboardView({ courses, userProgress, courseCompletionPct, onOpenCourse, currentUser }) {
+function DashboardView({ courses, userProgress, courseCompletionPct, onOpenCourse, currentUser, userRole, onChangeRole }) {
   const started = courses.filter((c) => userProgress[c.id]);
   const completed = started.filter((c) => courseCompletionPct(c) === 100);
   const inProgress = started.filter((c) => courseCompletionPct(c) < 100);
@@ -1086,15 +1256,34 @@ function DashboardView({ courses, userProgress, courseCompletionPct, onOpenCours
     ? Math.round(started.reduce((sum, c) => sum + courseCompletionPct(c), 0) / started.length)
     : 0;
 
+  const mandatoryCourses = userRole
+    ? courses.filter((c) => getCourseRequirement(c.id, userRole) === "obbligatorio")
+    : [];
+  const mandatoryDone = mandatoryCourses.filter((c) => courseCompletionPct(c) === 100).length;
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-      <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-1">I miei corsi</h2>
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-1">
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">I miei corsi</h2>
+        {userRole && (
+          <button
+            onClick={onChangeRole}
+            className="flex items-center gap-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 px-3 py-1.5 rounded-full"
+          >
+            <User className="w-3.5 h-3.5" /> {ROLES[userRole]?.label} · Cambia profilo
+          </button>
+        )}
+      </div>
       <p className="text-gray-500 text-sm sm:text-base mb-6">Ciao {currentUser.name.split(" ")[0]}, ecco il tuo percorso formativo.</p>
 
       <div className="grid sm:grid-cols-3 gap-4 mb-8">
         <StatCard icon={<Play className="w-5 h-5" />} label="Corsi iniziati" value={started.length} color="#e8233c" />
         <StatCard icon={<Award className="w-5 h-5" />} label="Corsi completati" value={completed.length} color="#16a34a" />
-        <StatCard icon={<BarChart3 className="w-5 h-5" />} label="Avanzamento medio" value={`${avgPct}%`} color="#7a1f2b" />
+        {userRole ? (
+          <StatCard icon={<AlertCircle className="w-5 h-5" />} label="Obbligatori completati" value={`${mandatoryDone}/${mandatoryCourses.length}`} color="#dc2626" />
+        ) : (
+          <StatCard icon={<BarChart3 className="w-5 h-5" />} label="Avanzamento medio" value={`${avgPct}%`} color="#7a1f2b" />
+        )}
       </div>
 
       {started.length === 0 ? (
@@ -1110,7 +1299,7 @@ function DashboardView({ courses, userProgress, courseCompletionPct, onOpenCours
               <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">In corso</h3>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {inProgress.map((c) => (
-                  <CourseCard key={c.id} course={c} pct={courseCompletionPct(c)} onClick={() => onOpenCourse(c.id)} />
+                  <CourseCard key={c.id} course={c} pct={courseCompletionPct(c)} onClick={() => onOpenCourse(c.id)} requirement={userRole ? getCourseRequirement(c.id, userRole) : null} />
                 ))}
               </div>
             </div>
@@ -1120,7 +1309,7 @@ function DashboardView({ courses, userProgress, courseCompletionPct, onOpenCours
               <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Completati</h3>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {completed.map((c) => (
-                  <CourseCard key={c.id} course={c} pct={courseCompletionPct(c)} onClick={() => onOpenCourse(c.id)} />
+                  <CourseCard key={c.id} course={c} pct={courseCompletionPct(c)} onClick={() => onOpenCourse(c.id)} requirement={userRole ? getCourseRequirement(c.id, userRole) : null} />
                 ))}
               </div>
             </div>
@@ -1382,8 +1571,8 @@ function Quiz({ questions, onSubmit, alreadyPassed }) {
 
 // ---------- Admin Panel ----------
 function AdminPanel({ courses, onAdd, onUpdate, onDelete, users, progress, accessLog }) {
-  const [tab, setTab] = useState("courses"); // courses | users | access
-  const [editingCourse, setEditingCourse] = useState(null); // course object or "new"
+  const [tab, setTab] = useState("courses");
+  const [editingCourse, setEditingCourse] = useState(null);
 
   const volunteers = Object.values(users).filter((u) => u.role !== "admin");
 
@@ -1494,7 +1683,7 @@ function AdminPanel({ courses, onAdd, onUpdate, onDelete, users, progress, acces
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-sm text-gray-900">{v.name}</div>
-                      <div className="text-xs text-gray-400">{v.email}</div>
+                      <div className="text-xs text-gray-400">{v.email}{v.profile_role ? ` · ${ROLES[v.profile_role]?.label || v.profile_role}` : ""}</div>
                     </div>
                     <div className="text-right text-xs flex-shrink-0">
                       <div className="text-gray-600 font-semibold">{started} corsi iniziati</div>
@@ -1639,7 +1828,6 @@ function CourseEditor({ course, onSave, onCancel }) {
         </select>
       </div>
 
-      {/* Modules */}
       <div>
         <div className="flex items-center justify-between mb-2">
           <label className="text-xs font-bold text-gray-700 uppercase tracking-wide">Materiali (video / PDF)</label>
@@ -1685,7 +1873,6 @@ function CourseEditor({ course, onSave, onCancel }) {
         </div>
       </div>
 
-      {/* Quiz */}
       <div>
         <div className="flex items-center justify-between mb-2">
           <label className="text-xs font-bold text-gray-700 uppercase tracking-wide">Quiz di verifica</label>
