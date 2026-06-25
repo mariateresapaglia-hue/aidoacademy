@@ -397,8 +397,7 @@ async function signUpUser(name, email, password) {
     options: { data: { name } },
   });
   if (error) return { error: error.message };
-  const role = email === "admin@aido.it" ? "admin" : "volunteer";
-  if (data.user) {
+const role = "volunteer";  if (data.user) {
     await supabase.from("users").upsert(
       { email, name, role },
       { onConflict: "email" }
@@ -618,8 +617,7 @@ export default function App() {
         const known = u[email] || {
           email,
           name: session.user.user_metadata?.name || email,
-          role: email === "admin@aido.it" ? "admin" : "volunteer",
-        };
+role: u?.profile_role || (email === "admin@aido.it" ? "admin" : "volunteer"),        };
         setCurrentUser(known);
         if (known.profile_role) {
           setUserRole(known.profile_role);
@@ -650,7 +648,7 @@ export default function App() {
     if (error) { setAuthError(error); return; }
     setAuthError("");
     if (data?.session) {
-      const role = email === "admin@aido.it" ? "admin" : "volunteer";
+      const role = "volunteer";
       const newUser = { email, name, role };
       setUsers((prev) => ({ ...prev, [email]: newUser }));
       setCurrentUser(newUser);
@@ -676,14 +674,14 @@ export default function App() {
     const u = users[email] || {
       email,
       name: data.user.user_metadata?.name || email,
-      role: email === "admin@aido.it" ? "admin" : "volunteer",
+      role: users[email]?.profile_role || (email === "admin@aido.it" ? "admin" : "volunteer"),
     };
     setCurrentUser(u);
     if (u.profile_role) setUserRole(u.profile_role);
     setAuthError("");
     showToast(`Bentornato/a, ${u.name}!`);
     await logAccess(email);
-  };
+  };                          
 
   const handleLogout = async () => {
     await signOutUser();
