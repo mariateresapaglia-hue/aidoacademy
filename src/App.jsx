@@ -413,7 +413,15 @@ async function signInUser(email, password) {
   if (error) return { error: error.message };
   return { data };
 }
-
+async function resetPassword(email) {
+  await supabaseReady;
+  if (!supabase) return { error: "Supabase non disponibile in questo ambiente." };
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + "?reset=true"
+  });
+  if (error) return { error: error.message };
+  return { data: "Email inviata! Controlla la tua casella." };
+}
 async function signOutUser() {
   await supabaseReady;
   if (!supabase) return;
@@ -1189,6 +1197,23 @@ function AuthScreen({ mode, setMode, onLogin, onRegister, error }) {
                 <LogIn className="w-4 h-4" />
                 {mode === "login" ? "Accedi" : "Crea account"}
               </button>
+              {mode === "login" && (
+  <button
+    type="button"
+    onClick={async () => {
+      if (!email) {
+        alert("Inserisci prima la tua email nel campo sopra");
+        return;
+      }
+      const res = await resetPassword(email);
+      if (res.error) alert("Errore: " + res.error);
+      else alert(res.data);
+    }}
+    className="w-full text-xs text-rose-600 hover:text-rose-700 mt-2"
+  >
+    Password dimenticata?
+  </button>
+)}
             </div>
           )}
         </div>
