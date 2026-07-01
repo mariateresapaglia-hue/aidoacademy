@@ -612,24 +612,30 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [userRole, setUserRole] = useState(null);
  const [resetMode, setResetMode] = useState(false); 
-
-  // Boot: load from Supabase
-  useEffect(() => {
-    (async () => {
+useEffect(() => {
+  (async () => {
     await supabaseReady;
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get("reset") === "true" && urlParams.get("token")) {
-          const token = urlParams.get("token");
-const { error: otpError } = await supabase.auth.verifyOtp({ email: urlParams.get("email"), token: token, type: "recovery" });
-          if (otpError) {
-            alert("Link scaduto o non valido. Richiedi un nuovo reset password.");
-            setBooting(false);
-            return;
-          }
-          setResetMode(true);
-          setBooting(false);
-          return;
-        }
+    const urlParams = new URLSearchParams(window.location.search);
+    console.log("DEBUG - reset param:", urlParams.get("reset"));
+    console.log("DEBUG - token param:", urlParams.get("token"));
+    console.log("DEBUG - email param:", urlParams.get("email"));
+    if (urlParams.get("reset") === "true" && urlParams.get("token")) {
+      console.log("DEBUG - entrato nel blocco reset+token");
+      const token = urlParams.get("token");
+      const { error: otpError } = await supabase.auth.verifyOtp({ email: urlParams.get("email"), token: token, type: "recovery" });
+      console.log("DEBUG - risultato verifyOtp, errore:", otpError);
+      if (otpError) {
+        console.log("DEBUG - token non valido o scaduto");
+        alert("Link scaduto o non valido. Richiedi un nuovo reset password.");
+        setBooting(false);
+        return;
+      }
+      console.log("DEBUG - token valido, entro in resetMode");
+      setResetMode(true);
+      setBooting(false);
+      return;
+    }
+    console.log("DEBUG - condizione reset+token NON soddisfatta, proseguo normalmente");
       await seedCoursesIfEmpty();
       const [u, c, p, log, session] = await Promise.all([
         fetchUsers(),
