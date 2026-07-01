@@ -620,7 +620,7 @@ export default function App() {
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get("reset") === "true" && urlParams.get("token")) {
           const token = urlParams.get("token");
-          const { error: otpError } = await supabase.auth.verifyOtp({ token_hash: token, type: "recovery" });
+const { error: otpError } = await supabase.auth.verifyOtp({ email: urlParams.get("email"), token: token, type: "recovery" });
           if (otpError) {
             alert("Link scaduto o non valido. Richiedi un nuovo reset password.");
             setBooting(false);
