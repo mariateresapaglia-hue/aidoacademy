@@ -426,6 +426,14 @@ async function signOutUser() {
   await supabaseReady;
   if (!supabase) return;
   await supabase.auth.signOut();
+}updateUserPassword
+
+async function updateUserPassword(newPassword) {
+  await supabaseReady;
+  if (!supabase) return { error: "Supabase non disponibile" };
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) return { error: error.message };
+  return { data: "Password aggiornata!" };
 }
 
 async function getCurrentSession() {
@@ -603,10 +611,16 @@ export default function App() {
   const [trackFilter, setTrackFilter] = useState("all");
   const [toast, setToast] = useState(null);
   const [userRole, setUserRole] = useState(null);
+ const [resetMode, setResetMode] = useState(false); 
 
   // Boot: load from Supabase
   useEffect(() => {
     (async () => {
+      if (window.location.search.includes("reset=true") || window.location.hash.includes("type=recovery")) {
+          setResetMode(true);
+          setBooting(false);
+          return;
+        }
       await seedCoursesIfEmpty();
       const [u, c, p, log, session] = await Promise.all([
         fetchUsers(),
@@ -792,6 +806,8 @@ role: u?.profile_role || (email === "admin@aido.it" ? "admin" : "volunteer"),   
         error={authError}
       />
     );
+    } else if (resetMode) {
+    mainContent = <ResetPasswordScreen onDone={() => { setResetMode(false); window.location.href = "/"; }} />;
   } else if (!userRole) {
     mainContent = <RoleSelector onSelect={handleSelectRole} />;
   } else if (view === "admin" && currentUser.role === "admin") {
@@ -1079,6 +1095,54 @@ function RoleSelector({ onSelect }) {
 }
 
 // ---------- Auth Screen ----------
+// ---------- Reset Password Screen ----------
+function ResetPasswordScreen({ onDone }) {
+  const [password, setPassword] = useState("");
+  const [password2, setPassword2] = useState("");
+  const [msg, setMsg] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    if (password.length < 6) { setMsg("La password deve essere almeno 6 caratteri"); return; }
+    if (password !== password2) { setMsg("Le password non coincidono"); return; }
+    setLoading(true);
+    const res = await updateUserPassword(password);
+    setLoading(false);
+    if (res.error) { setMsg("Errore: " + res.error); return; }
+    setMsg("Password aggiornata! Ora puoi accedere.");
+    setTimeout(() => onDone(), 2000);
+  };
+
+  return (
+    <div className="h-full min-h-screen flex items-center justify-center p-4 bg-gray-50">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 space-y-4">
+        <h2 className="text-lg font-bold text-center">Imposta nuova password</h2>
+        <input
+          type="password"
+          placeholder="Nuova password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full px-3 py-2 border rounded-lg text-sm"
+        />
+        <input
+          type="password"
+          placeholder="Ripeti password"
+          value={password2}
+          onChange={(e) => setPassword2(e.target.value)}
+          className="w-full px-3 py-2 border rounded-lg text-sm"
+        />
+        {msg && <p className="text-xs text-center text-gray-600">{msg}</p>}
+        <button
+          onClick={handleSubmit}
+          disabled={loading}
+          className="w-full bg-gradient-to-r from-rose-600 to-red-700 text-white font-medium py-2 rounded-lg disabled:opacity-50"
+        >
+          {loading ? "Salvataggio..." : "Salva password"}
+        </button>
+      </div>
+    </div>
+  );
+}
 function AuthScreen({ mode, setMode, onLogin, onRegister, error }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
