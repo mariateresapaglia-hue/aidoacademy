@@ -616,6 +616,7 @@ export default function App() {
   // Boot: load from Supabase
   useEffect(() => {
     (async () => {
+    await supabaseReady;
     const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get("reset") === "true" && urlParams.get("token")) {
           const token = urlParams.get("token");
