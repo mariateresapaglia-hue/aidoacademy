@@ -7,6 +7,7 @@ import {
   LogIn, LogOut, User, ShieldCheck, X, Edit3, Save, BarChart3, Award,
   ChevronDown, ChevronUp, AlertCircle
 } from "lucide-react";
+import ChatbotWidget from "./ChatbotWidget.jsx";
 
 // ---------- Supabase ----------
 // NOTA: la libreria @supabase/supabase-js non e' disponibile nell'anteprima
@@ -902,6 +903,8 @@ role: u?.profile_role || (email === "admin@aido.it" ? "admin" : "volunteer"),   
       )}
 
       {mainContent}
+
+      <ChatbotWidget />
     </div>
   );
 }
