@@ -811,7 +811,9 @@ role: u?.profile_role || (email === "admin@aido.it" ? "admin" : "volunteer"),   
 
   // Determina cosa mostrare nel corpo principale
   let mainContent;
-  if (!currentUser) {
+ if (resetMode) {
+    mainContent = <ResetPasswordScreen onDone={() => { setResetMode(false); window.location.href = "/"; }} />;
+  } else if (!currentUser) {
     mainContent = (
       <AuthScreen
         mode={authMode}
@@ -821,7 +823,7 @@ role: u?.profile_role || (email === "admin@aido.it" ? "admin" : "volunteer"),   
         error={authError}
       />
     );
-    } else if (resetMode) {
+  } else if (!userRole) {
     mainContent = <ResetPasswordScreen onDone={() => { setResetMode(false); window.location.href = "/"; }} />;
   } else if (!userRole) {
     mainContent = <RoleSelector onSelect={handleSelectRole} />;
