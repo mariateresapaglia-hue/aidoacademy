@@ -951,51 +951,12 @@ function PartnerBadge({ partnerKey, size = "md" }) {
     content
   );
 }
-// ---------- Reti di Valore - Project Context ----------
+// ---------- Partner support banner ----------
 function ProjectContextBanner() {
-  const actions = [
-    { name: "AIDO Academy", desc: "Formazione per dirigenti, responsabili e volontari", active: true, icon: GraduationCap },
-    { name: "SìAIDO", desc: "Nuovo sistema informativo associativo", active: false, icon: Database },
-    { name: "DigitalAIDO", desc: "Rinnovamento dell'app per i cittadini", active: false, icon: Smartphone },
-    { name: "Comunicazione e Disseminazione", desc: "Diffusione della cultura del dono", active: false, icon: Megaphone },
-  ];
   return (
     <div className="bg-white/60 border-b border-rose-100">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4">
-        <div className="text-center mb-3">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-rose-600">Progetto Reti di Valore</span>
-          <p className="text-xs text-gray-500 mt-0.5">Formazione e Innovazione per la Cultura del Dono — un progetto, quattro azioni</p>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {actions.map((a) => {
-            const Icon = a.icon;
-            return (
-              <div
-                key={a.name}
-                className={`rounded-xl p-3 text-center border transition-all ${
-                  a.active
-                    ? "bg-rose-600 border-rose-600 shadow-md"
-                    : "bg-white border-gray-200"
-                }`}
-              >
-                <Icon className={`w-5 h-5 mx-auto mb-1.5 ${a.active ? "text-white" : "text-rose-500"}`} />
-                <div className={`text-[11px] font-bold leading-tight ${a.active ? "text-white" : "text-gray-700"}`}>
-                  {a.name}
-                </div>
-                <div className={`text-[10px] mt-0.5 leading-tight hidden sm:block ${a.active ? "text-rose-100" : "text-gray-400"}`}>
-                  {a.desc}
-                </div>
-                {a.active && (
-                  <div className="text-[9px] font-bold text-white/90 mt-1 bg-white/20 rounded-full px-2 py-0.5 inline-block">
-                    Sei qui
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="flex items-center justify-center gap-6 mt-5 pt-4 border-t border-rose-100/60">
+        <div className="flex items-center justify-center gap-6">
           <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Con il supporto di</span>
           <div className="flex gap-4">
             {MAIN_PARTNERS.map((key) => (
@@ -1007,7 +968,6 @@ function ProjectContextBanner() {
     </div>
   );
 }
-
 // ---------- Header ----------
 function Header({ currentUser, onLogout, view, setView, setActiveCourseId }) {
   const { canInstall, promptInstall } = useInstallPrompt();
