@@ -951,15 +951,6 @@ function PartnerBadge({ partnerKey, size = "md" }) {
     content
   );
 }
-
-  return p.url ? (
-    <a href={p.url} target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
-      {content}
-    </a>
-  ) : (
-    content
-  );
-}
 // ---------- Reti di Valore - Project Context ----------
 function ProjectContextBanner() {
   const actions = [
