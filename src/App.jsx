@@ -1650,6 +1650,217 @@ function loadImage(src) {
   });
 }
 
+function drawDrop(ctx, cx, cy, size, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - size);
+  ctx.bezierCurveTo(cx - size * 0.67, cy - size * 0.18, cx - size * 0.67, cy + size * 0.18, cx - size * 0.67, cy + size * 0.36);
+  ctx.bezierCurveTo(cx - size * 0.67, cy + size * 0.79, cx - size * 0.22, cy + size * 1.03, cx, cy + size * 1.03);
+  ctx.bezierCurveTo(cx + size * 0.22, cy + size * 1.03, cx + size * 0.67, cy + size * 0.79, cx + size * 0.67, cy + size * 0.36);
+  ctx.bezierCurveTo(cx + size * 0.67, cy + size * 0.18, cx + size * 0.67, cy - size * 0.18, cx, cy - size);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function letterSpacedText(ctx, text, cx, y, spacing) {
+  const chars = [...text];
+  const widths = chars.map((ch) => ctx.measureText(ch).width);
+  const total = widths.reduce((a, b) => a + b, 0) + spacing * (chars.length - 1);
+  let x = cx - total / 2;
+  const prevAlign = ctx.textAlign;
+  ctx.textAlign = "left";
+  chars.forEach((ch, i) => {
+    ctx.fillText(ch, x, y);
+    x += widths[i] + spacing;
+  });
+  ctx.textAlign = prevAlign;
+}
+
+function wrapCenteredText(ctx, text, cx, y, maxWidth, lineHeight) {
+  const words = text.split(" ");
+  const lines = [];
+  let line = "";
+  words.forEach((word) => {
+    const test = line ? `${line} ${word}` : word;
+    if (line && ctx.measureText(test).width > maxWidth) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  });
+  if (line) lines.push(line);
+  const startY = y - ((lines.length - 1) * lineHeight) / 2;
+  lines.forEach((l, i) => ctx.fillText(l, cx, startY + i * lineHeight));
+}
+
+function drawDivider(ctx, cx, y, width, color) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx - width / 2, y);
+  ctx.lineTo(cx - 14, y);
+  ctx.moveTo(cx + 14, y);
+  ctx.lineTo(cx + width / 2, y);
+  ctx.stroke();
+
+  ctx.save();
+  ctx.translate(cx, y);
+  ctx.rotate(Math.PI / 4);
+  ctx.fillStyle = color;
+  ctx.fillRect(-6, -6, 12, 12);
+  ctx.restore();
+}
+
+function drawCornerFlourish(ctx, x, y, flipX, flipY, color) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(flipX, flipY);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, 34);
+  ctx.quadraticCurveTo(0, 0, 34, 0);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0, 20);
+  ctx.quadraticCurveTo(0, 12, 12, 12);
+  ctx.moveTo(20, 0);
+  ctx.quadraticCurveTo(12, 0, 12, 12);
+  ctx.stroke();
+  ctx.restore();
+}
+
+async function generateCertificate(userName, courseTitle, dateStr) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1400;
+  canvas.height = 990;
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  const H = canvas.height;
+  const CX = W / 2;
+
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, "#ffffff");
+  bg.addColorStop(1, "#fdf2f3");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.save();
+  ctx.globalAlpha = 0.035;
+  drawDrop(ctx, CX, H / 2 - 40, 220, "#ED1C24");
+  ctx.restore();
+
+  ctx.strokeStyle = "#ED1C24";
+  ctx.lineWidth = 10;
+  ctx.beginPath();
+  ctx.roundRect(36, 36, W - 72, H - 72, 20);
+  ctx.stroke();
+
+  ctx.strokeStyle = "#7a1f2b";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(56, 56, W - 112, H - 112, 14);
+  ctx.stroke();
+
+  drawCornerFlourish(ctx, 90, 90, 1, 1, "#ED1C24");
+  drawCornerFlourish(ctx, W - 90, 90, -1, 1, "#ED1C24");
+  drawCornerFlourish(ctx, 90, H - 90, 1, -1, "#ED1C24");
+  drawCornerFlourish(ctx, W - 90, H - 90, -1, -1, "#ED1C24");
+
+  try {
+    const logoImg = await loadImage("/aido-logo.svg");
+    const logoSize = 100;
+    ctx.drawImage(logoImg, CX - logoSize / 2, 88, logoSize, logoSize);
+  } catch {
+    drawDrop(ctx, CX, 88 + 50, 50, "#ED1C24");
+  }
+  ctx.textAlign = "center";
+
+  ctx.font = "italic 18px Georgia";
+  ctx.fillStyle = "#7a1f2b";
+  ctx.fillText("aidoAcademy", CX, 228);
+
+  ctx.font = "bold 40px Georgia";
+  ctx.fillStyle = "#111827";
+  letterSpacedText(ctx, "ATTESTATO DI COMPLETAMENTO", CX, 288, 4);
+
+  drawDivider(ctx, CX, 322, 240, "#ED1C24");
+
+  ctx.font = "italic 22px Georgia";
+  ctx.fillStyle = "#6b7280";
+  ctx.fillText("Si certifica che", CX, 395);
+
+  ctx.font = "bold 50px Georgia";
+  ctx.fillStyle = "#ED1C24";
+  ctx.fillText(userName.toUpperCase(), CX, 465);
+
+  const nameWidth = Math.min(ctx.measureText(userName.toUpperCase()).width + 40, W - 240);
+  ctx.strokeStyle = "#f3b9bb";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(CX - nameWidth / 2, 485);
+  ctx.lineTo(CX + nameWidth / 2, 485);
+  ctx.stroke();
+
+  ctx.font = "22px Georgia";
+  ctx.fillStyle = "#374151";
+  ctx.fillText("ha completato con successo il percorso formativo", CX, 545);
+
+  ctx.font = "italic bold 29px Georgia";
+  ctx.fillStyle = "#111827";
+  wrapCenteredText(ctx, `«${courseTitle}»`, CX, 600, W - 340, 38);
+
+  drawDivider(ctx, CX, 700, 180, "#7a1f2b");
+
+  ctx.save();
+  ctx.translate(CX, 790);
+  ctx.fillStyle = "#ED1C24";
+  ctx.beginPath();
+  ctx.arc(0, 0, 34, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#7a1f2b";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(0, 0, 34, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 16px Georgia";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("AIDO", 0, 1);
+  ctx.textBaseline = "alphabetic";
+  ctx.restore();
+
+  ctx.textAlign = "left";
+  ctx.strokeStyle = "#9ca3af";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(130, H - 175);
+  ctx.lineTo(400, H - 175);
+  ctx.stroke();
+  ctx.font = "13px Georgia";
+  ctx.fillStyle = "#9ca3af";
+  ctx.fillText("Data di rilascio", 130, H - 185);
+  ctx.font = "16px Georgia";
+  ctx.fillStyle = "#6b7280";
+  ctx.fillText(dateStr, 130, H - 152);
+
+  ctx.textAlign = "right";
+  ctx.beginPath();
+  ctx.moveTo(W - 400, H - 175);
+  ctx.lineTo(W - 130, H - 175);
+  ctx.stroke();
+  ctx.font = "13px Georgia";
+  ctx.fillStyle = "#9ca3af";
+  ctx.fillText("Formazione e Innovazione per la Cultura del Dono", W - 130, H - 185);
+  ctx.font = "16px Georgia";
+  ctx.fillStyle = "#6b7280";
+  ctx.fillText("AIDO — Associazione Italiana Donatori Organi", W - 130, H - 152);
+
+  return canvas.toDataURL("image/png");
+}
+
 async function generateCertificate(userName, courseTitle, dateStr) {
   const canvas = document.createElement("canvas");
   canvas.width = 1200;
