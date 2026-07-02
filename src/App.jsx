@@ -353,17 +353,11 @@ const REQUIREMENT_STYLES = {
 
 // ---------- Docenti e Partner ----------
 const PARTNERS = {
-  "aido": { name: "AIDO", role: "Formazione interna e governance associativa", bio: "", color: "#ED1C24", logo: "/aido-logo.svg" },
-  "cnt": { name: "CNT — Centro Nazionale Trapianti", role: "Formazione medico-scientifica sulla donazione", bio: "", color: "#E63946", logo: "/partner-cnt.png" },
-  "e-ius": { name: "e-IUS", role: "Formazione, progettazione e fundraising", bio: "", color: "#5A8F69", logo: "/partner-e-ius.png" },
-  "privacy-italia": { name: "Privacy Italia", role: "Consulenza su privacy e GDPR", bio: "", color: "#1E6FA8", logo: "/partner-privacyitalia.png" },
-  "valentina-novembre": { name: "Valentina Novembre", role: "Comunicazione digitale e social media", bio: "", color: "#9333ea" },
-  "guido-savelli": { name: "Guido Savelli", role: "Privacy e GDPR", bio: "", color: "#1E6FA8" },
-  "medici-trapiantologi": { name: "Medici Trapiantologi", role: "Aspetti clinici della donazione", bio: "", color: "#E63946" },
-  "psicologo-coachleader": { name: "Psicologo / Coachleader", role: "Mediazione e gestione dei gruppi", bio: "", color: "#9333ea" },
-  "flavio-petrini": { name: "Flavio Petrini", role: "Progettazione e bandi", bio: "", color: "#5A8F69" },
-  "corrado-vella": { name: "Corrado Vella", role: "Progettazione e bandi", bio: "", color: "#5A8F69" },
-};
+  "aido": { name: "AIDO", role: "Formazione interna e governance associativa", bio: "", color: "#ED1C24", logo: "/aido-logo.svg", url: "https://aido.it/" },
+  "cnt": { name: "CNT — Centro Nazionale Trapianti", role: "Formazione medico-scientifica sulla donazione", bio: "", color: "#E63946", logo: "/partner-cnt.png", url: "https://www.trapianti.salute.gov.it/" },
+  "e-ius": { name: "e-IUS", role: "Formazione, progettazione e fundraising", bio: "", color: "#5A8F69", logo: "/partner-e-ius.png", url: "https://e-ius.it/" },
+  "privacy-italia": { name: "Privacy Italia", role: "Consulenza su privacy e GDPR", bio: "", color: "#1E6FA8", logo: "/partner-privacyitalia.png", url: "https://www.privacytalia.it/" },
+  "csv-lombardia": { name: "CSVnet Lombardia", role: "Centro Servizi per il Volontariato", bio: "", color: "#2E7D32", logo: "/partner-csvlombardia.png", url: "https://www.csvlombardia.it/" },
 
 // Partner istituzionali principali, mostrati nella schermata iniziale
 const MAIN_PARTNERS = ["aido", "cnt", "e-ius", "privacy-italia"];
