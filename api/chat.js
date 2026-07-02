@@ -40,8 +40,8 @@ export default async function handler(req, res) {
       return;
     }
 
-    const reply = data.content?.[0]?.text || "";
-    res.status(200).json({ reply });
+    const textBlock = Array.isArray(data.content) ? data.content.find((c) => c.type === "text") : null;
+    const reply = textBlock?.text || "";    res.status(200).json({ reply });
   } catch {
     res.status(502).json({ error: "Errore di comunicazione con il servizio AI." });
   }
