@@ -824,10 +824,9 @@ role: u?.profile_role || (email === "admin@aido.it" ? "admin" : "volunteer"),   
         error={authError}
       />
     );
-  } else if (!userRole) {
-    mainContent = <ResetPasswordScreen onDone={() => { setResetMode(false); window.location.href = "/"; }} />;
+   } else if (!userRole) {
+    mainContent = <RoleSelector onSelect={handleSelectRole} />;
   } else if (view === "admin" && currentUser.role === "admin") {
-    mainContent = (
       <AdminPanel
         courses={courses}
         onAdd={addCourse}
