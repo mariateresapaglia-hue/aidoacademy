@@ -827,6 +827,7 @@ role: u?.profile_role || (email === "admin@aido.it" ? "admin" : "volunteer"),   
    } else if (!userRole) {
     mainContent = <RoleSelector onSelect={handleSelectRole} />;
   } else if (view === "admin" && currentUser.role === "admin") {
+       mainContent = (
       <AdminPanel
         courses={courses}
         onAdd={addCourse}
