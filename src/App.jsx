@@ -360,8 +360,7 @@ const PARTNERS = {
   "csv-lombardia": { name: "CSVnet Lombardia", role: "Centro Servizi per il Volontariato", bio: "", color: "#2E7D32", logo: "/partner-csvlombardia.png", url: "https://www.csvlombardia.it/" },
 
 // Partner istituzionali principali, mostrati nella schermata iniziale
-const MAIN_PARTNERS = ["aido", "cnt", "e-ius", "privacy-italia"];
-
+const MAIN_PARTNERS = ["aido", "cnt", "e-ius", "privacy-italia", "csv-lombardia"];
 // Collega ogni corso ai relativi docenti/partner (chiavi di PARTNERS)
 const COURSE_PARTNERS = {
   "c-statuto": ["medici-trapiantologi"],
@@ -905,21 +904,7 @@ role: u?.profile_role || (email === "admin@aido.it" ? "admin" : "volunteer"),   
 
 // ---------- Partner badge (usa il logo reale se disponibile, altrimenti iniziali) ----------
 function PartnerBadge({ partnerKey, size = "md" }) {
-  const p = PARTNERS[partnerKey];
-  if (!p) return null;
-  const sizes = {
-    sm: "w-9 h-9 text-[10px]",
-    md: "w-12 h-12 text-xs",
-  };
-  const initials = p.name
-    .split(/[\s-]/)
-    .filter((w) => w.length > 0 && w[0] === w[0].toUpperCase())
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 3) || p.name.slice(0, 2);
-
-  return (
+  const content = (
     <div className="flex flex-col items-center gap-1.5">
       {p.logo ? (
         <div className={`${sizes[size]} rounded-xl bg-white border border-gray-100 shadow-sm flex items-center justify-center p-1.5 overflow-hidden`}>
@@ -936,8 +921,15 @@ function PartnerBadge({ partnerKey, size = "md" }) {
       <span className="text-[10px] text-gray-500 text-center leading-tight max-w-[80px]">{p.name}</span>
     </div>
   );
-}
 
+  return p.url ? (
+    <a href={p.url} target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
+      {content}
+    </a>
+  ) : (
+    content
+  );
+}
 // ---------- Reti di Valore - Project Context ----------
 function ProjectContextBanner() {
   const actions = [
